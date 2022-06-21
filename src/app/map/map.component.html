@@ -1,0 +1,11 @@
+<div #map class="map">
+  <app-filter-layers *ngIf="layersIds.length" [layersIds]="layersIds"></app-filter-layers>
+  <div #popup class="popup">
+    <div *ngIf="popupData">
+      <p class="popup__title">{{ popupData.type }}</p>
+      <span class="popup__text">{{ 'Погибших:' + popupData.died }}</span>
+      <span class="popup__text">{{ 'Раненых:' + popupData.wounded }}</span>
+    </div>
+  </div>
+<!--  <app-popup *ngIf="popupActive" [lngLat]="accidentLngLat!" [data]="accidentData!"></app-popup>-->
+</div>

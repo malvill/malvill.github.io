@@ -1,0 +1,16 @@
+.filter-layers {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 50%;
+  position: absolute;
+  z-index: 1000;
+  left: 0;
+  top: 0;
+  width: 20%;
+  background: white;
+  opacity: 0.8;
+  font-family: Georgia, 'Times New Roman', Times, serif;
+  font-size: 22px;
+  padding: 10px 20px;
+}

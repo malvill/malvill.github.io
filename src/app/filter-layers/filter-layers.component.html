@@ -1,0 +1,6 @@
+<div class="filter-layers">
+  <label *ngFor="let layerId of layersIds">
+    <input class="filter-layers__text" type="checkbox" [name]="layerId" (change)="toggleLayerView($event)" checked>
+    {{ layerId }}
+  </label>
+</div>
