@@ -4,15 +4,15 @@ import {environment} from "../../environments/environment";
 import {HttpClient} from "@angular/common/http";
 import {BehaviorSubject, map, Subject, take} from "rxjs";
 import {Feature, FeatureCollection, Position, Point} from 'geojson';
-import {AccidentProperties} from "../models/accidentProperties";
-import {layerVisibilityData} from "../map/map.component";
+import {AccidentProperties} from "../utils/accidentProperties";
+import { LayerVisibility } from "../utils/layerVisibility";
 
 
 @Injectable({
   providedIn: 'root'
 })
 export class MapboxService implements OnInit {
-  public layerVisibilityChanged$ = new Subject<layerVisibilityData>();
+  public layerVisibilityChanged$ = new Subject<LayerVisibility>();
   public mapInstance?: mapboxgl.Map;
   public centerCoordinates$: BehaviorSubject<Position> = new BehaviorSubject<Position>([50, 50]);
   public data$: BehaviorSubject<FeatureCollection<Point, AccidentProperties>> = new BehaviorSubject<FeatureCollection<Point, AccidentProperties>>({
@@ -46,40 +46,6 @@ export class MapboxService implements OnInit {
       .pipe(take(1))
       .subscribe((data: FeatureCollection<Point, AccidentProperties>) => this.data$.next(data));
   }
-
-  countBounds() {
-    return this.data$.pipe(map((data) => {
-      console.log(data)
-      const coordinates = data.features[0].geometry.coordinates;
-
-      // Create a 'LngLatBounds' with both corners at the first coordinate.
-      const bounds = new mapboxgl.LngLatBounds(
-        [coordinates[0], coordinates[1]],
-        [coordinates[0], coordinates[1]]
-      );
-
-      // Extend the 'LngLatBounds' to include every coordinate in the bounds result.
-      for (const feature of data.features) {
-        bounds.extend([feature.geometry.coordinates[0], feature.geometry.coordinates[1]]);
-      }
-
-      return bounds;
-    }))
-  }
-
-  createPopup() {
-
-  }
-
-
-  // @ts-ignore
-  removePopup(popup) {
-    popup.remove();
-  }
-
-
-
-
 
   countCenterCoordinates() {
     this.data$
