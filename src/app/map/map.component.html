@@ -1,7 +1,10 @@
 <div #map class="map">
-  <app-filter-layers *ngIf="layersIds.length" [layersIds]="layersIds"></app-filter-layers>
-  <div #popup class="popup">
-    <div *ngIf="popupData">
+  <app-filter-layers
+    *ngIf="layersIds.length" [layersIds]="layersIds"
+    (onLayerVisibilityChange)="changeLayerVisibility($event)">
+  </app-filter-layers>
+  <div #popup>
+    <div *ngIf="popupData" class="popup">
       <p class="popup__title">{{ popupData.type }}</p>
       <span class="popup__text">{{ 'Погибших:' + popupData.died }}</span>
       <span class="popup__text">{{ 'Раненых:' + popupData.wounded }}</span>

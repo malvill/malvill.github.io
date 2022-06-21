@@ -1,10 +1,11 @@
-import {AfterViewInit, Component, ElementRef, OnInit, ViewChild} from '@angular/core';
+import { AfterViewInit, Component, ElementRef, OnInit, ViewChild } from '@angular/core';
 import * as mapboxgl from 'mapbox-gl';
-import {MapboxService} from "../map-service/mapbox.service";
-import {LngLat, LngLatLike, MapLayerMouseEvent, Popup} from "mapbox-gl";
-import {AccidentProperties} from "../utils/accidentProperties";
-import {LayerVisibility} from "../utils/layerVisibility";
-import {FeatureCollection, Point} from "geojson";
+import { GeojsonService } from '../map-service/geojson.service';
+import { Expression, LngLatLike, MapLayerMouseEvent, Popup } from 'mapbox-gl';
+import { AccidentProperties } from '../types/accidentProperties';
+import { LayerVisibility } from '../types/layerVisibility';
+import { FeatureCollection, Point } from 'geojson';
+import { environment } from '../../environments/environment';
 
 
 @Component({
@@ -13,30 +14,32 @@ import {FeatureCollection, Point} from "geojson";
   styleUrls: ['./map.component.scss']
 })
 export class MapComponent implements OnInit, AfterViewInit {
-  public accidentLngLat?: LngLat;
-  public accidentData?: AccidentProperties;
-  // @ts-ignore
-  public popupData?;
+  public map!: mapboxgl.Map;
+  public popupData?: AccidentProperties;
   public layersIds: string[] = [];
-  map!: mapboxgl.Map;
-  private readonly style = 'mapbox://styles/mapbox/streets-v11';
-  // private readonly markerIconUrl = 'https://docs.mapbox.com/mapbox-gl-js/assets/custom_marker.png';
+  private markerIconFallback: boolean = false;
+  private initialGeojsonData!: FeatureCollection<Point, AccidentProperties>;
+  private readonly style: string = 'mapbox://styles/mapbox/streets-v11';
+  private readonly defaultMarkerIconUrl: string = 'https://docs.mapbox.com/mapbox-gl-js/assets/custom_marker.png';
+  private readonly fallbackMarkerconUrl: string = 'assets/marker-icon.png';
+  private readonly defaultMarkerIconSize: Expression = ['interpolate', ['linear'], ['zoom'], 5, 0.5, 15, 2];
+  private readonly fallbackMarkerIconSize: Expression = ['interpolate', ['linear'], ['zoom'], 5, 0.01, 15, 0.07];
   private readonly initialZoom: number = 0;
   private readonly centerCoords: LngLatLike = [50, 50];
   private readonly boundsPadding: number = 50;
-  private initialGeojsonData!: FeatureCollection<Point, AccidentProperties>;
 
   @ViewChild('map') private readonly mapElement!: ElementRef;
   @ViewChild("popup") private readonly popupElement!: ElementRef;
 
-  constructor(private readonly mapboxService: MapboxService) {}
+  constructor(private readonly mapboxService: GeojsonService) {}
 
   public ngOnInit(): void {
+    (mapboxgl as any).accessToken = environment.mapbox.accessToken;
     this.mapboxService.loadData();
   }
 
   public ngAfterViewInit(): void {
-    this.mapboxService.data$.subscribe((data: FeatureCollection<Point, AccidentProperties>) => {
+    this.mapboxService.loadData().subscribe((data: FeatureCollection<Point, AccidentProperties>) => {
       this.initialGeojsonData = data;
 
       this.map = new mapboxgl.Map({
@@ -52,28 +55,38 @@ export class MapComponent implements OnInit, AfterViewInit {
     })
   }
 
-  private loadMapData() {
+  private loadMapData(): void {
+    this.map.loadImage(this.defaultMarkerIconUrl, (err, img) => {
+      if (err) {
+        this.markerIconFallback = true;
+        this.map.loadImage(this.fallbackMarkerconUrl, (err, img) => {
+          if (err) throw err;
+          this.onImageLoaded(img as HTMLImageElement);
+        })
 
-
-    this.map.loadImage('https://docs.mapbox.com/mapbox-gl-js/assets/custom_marker.png', (err, img) => {
-      this.defineBounds();
-      // @ts-ignore
-      this.map.addImage('custom-marker', img);
-      this.addSource();
-      this.createLayers();
-
-      for (const layerId of this.layersIds) {
-        this.map.on('click', layerId,(event: MapLayerMouseEvent) => this.generatePopup(event))
-
-        this.map.on('mouseenter', layerId, () => {
-          this.map.getCanvas().style.cursor = 'pointer';
-        });
-
-        this.map.on('mouseleave', layerId, () => {
-          this.map.getCanvas().style.cursor = '';
-        });
+        return;
       }
+      this.onImageLoaded(img as HTMLImageElement)
     })
+  }
+
+  private onImageLoaded(img: HTMLImageElement): void {
+    this.defineBounds();
+    this.map.addImage('custom-marker', img);
+    this.addSource();
+    this.createLayers();
+
+    for (const layerId of this.layersIds) {
+      this.map.on('click', layerId,(event: MapLayerMouseEvent) => this.generatePopup(event))
+
+      this.map.on('mouseenter', layerId, () => {
+        this.map.getCanvas().style.cursor = 'pointer';
+      });
+
+      this.map.on('mouseleave', layerId, () => {
+        this.map.getCanvas().style.cursor = '';
+      });
+    }
   }
 
   private defineBounds(): void {
@@ -92,7 +105,7 @@ export class MapComponent implements OnInit, AfterViewInit {
     });
   }
 
-  createLayers() {
+  createLayers(): void {
     const tempLayersIds = []
 
     for (const feature of this.initialGeojsonData.features) {
@@ -104,7 +117,6 @@ export class MapComponent implements OnInit, AfterViewInit {
       }
     }
 
-    this.listenForLayersVisibilityChange();
     this.layersIds = tempLayersIds;
   }
 
@@ -126,17 +138,17 @@ export class MapComponent implements OnInit, AfterViewInit {
     popupInstance.setDOMContent(this.popupElement.nativeElement);
     popupInstance.setLngLat(coordinates as LngLatLike);
     popupInstance.addTo(this.map);
-    this.popupData = properties as AccidentProperties;
+    this.popupData = { id: eventFirstFeature.id, ...properties} as AccidentProperties;
   }
 
-  addSource() {
+  addSource(): void {
     this.map.addSource('roadAccidents', {
       type: 'geojson',
       data: this.initialGeojsonData
     })
   }
 
-  addFilteredLayer(layerId: string) {
+  addFilteredLayer(layerId: string): void {
     this.map.addLayer({
       'id': layerId,
       'type': 'symbol',
@@ -144,21 +156,18 @@ export class MapComponent implements OnInit, AfterViewInit {
       'layout': {
         'icon-image': 'custom-marker',
         'icon-allow-overlap': true,
-        'icon-size': ['interpolate', ['linear'], ['zoom'], 5, 0.5, 15, 2]
+        'icon-size': this.markerIconFallback ? this.fallbackMarkerIconSize : this.defaultMarkerIconSize
       },
       'filter': ['==', 'type', layerId]
     })
   }
 
-  listenForLayersVisibilityChange() {
-    this.mapboxService.layerVisibilityChanged$
-      .subscribe((layerChange: LayerVisibility) => {
-        this.map.setLayoutProperty(
-          layerChange.layerId,
-          'visibility',
-          layerChange.visible ? 'visible' : 'none'
-        );
-      })
+  changeLayerVisibility(layerChange: LayerVisibility): void {
+    this.map.setLayoutProperty(
+      layerChange.layerId,
+      'visibility',
+      layerChange.visible ? 'visible' : 'none'
+    );
   }
 
 }
